@@ -1,0 +1,170 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-industrial-950 text-industrial-50 font-body antialiased;
+    /* Subtle 3% diagonal stripe brushed-metal texture */
+    background-image: repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.015) 0px,
+      rgba(255, 255, 255, 0.015) 1px,
+      transparent 1px,
+      transparent 4px
+    );
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-industrial-900;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-industrial-600;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-industrial-400;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-industrial-800/65 backdrop-blur-[12px] border border-brass-500/15 rounded-lg shadow-card;
+  }
+
+  .primary-border {
+    @apply border-brass-500 focus:ring focus:ring-brass-500/20 outline-none;
+  }
+
+  .accent-border {
+    @apply border-molten-amber focus:ring focus:ring-molten-amber/20 outline-none;
+  }
+
+  .btn-primary {
+    @apply relative overflow-hidden bg-brass-500 text-industrial-950 font-mono font-bold
+           uppercase tracking-[0.05em] text-sm px-6 py-3 rounded-lg shadow-sm
+           transition-all duration-300 select-none border border-transparent;
+  }
+  .btn-primary:hover {
+    @apply bg-brass-400 shadow-focus-ring scale-[1.02];
+  }
+  .btn-primary:active {
+    @apply scale-95;
+  }
+
+  .btn-accent {
+    @apply relative overflow-hidden bg-molten-amber text-industrial-950 font-mono font-bold
+           uppercase tracking-[0.05em] text-sm px-6 py-3 rounded-lg shadow-sm
+           transition-all duration-300 select-none border border-transparent;
+  }
+  .btn-accent:hover {
+    @apply scale-[1.02];
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.3);
+  }
+  .btn-accent:active {
+    @apply scale-95;
+  }
+
+  .btn-ghost {
+    @apply relative bg-transparent border border-industrial-600 text-industrial-200 font-mono
+           uppercase tracking-[0.05em] text-sm px-6 py-3 rounded-lg
+           transition-all duration-300 select-none;
+  }
+  .btn-ghost:hover {
+    @apply border-scan-cyan shadow-cyan-glow text-scan-cyan scale-[1.02];
+  }
+  .btn-ghost:active {
+    @apply scale-95;
+  }
+
+  .scan-corner::before,
+  .scan-corner::after {
+    content: '';
+    @apply absolute w-6 h-6 border-scan-cyan;
+  }
+
+  .status-badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono font-medium uppercase tracking-wider;
+  }
+
+  .table-row-hover {
+    @apply transition-colors duration-200 hover:bg-industrial-800 border-l-[3px] border-transparent hover:border-scan-cyan cursor-pointer;
+  }
+}
+
+@layer utilities {
+  .font-display { font-family: 'Bebas Neue', cursive; }
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+  .font-body { font-family: 'DM Sans', sans-serif; }
+}
+
+@keyframes scanBeam {
+  0% { top: 0; opacity: 0.8; }
+  48% { opacity: 0.8; }
+  50% { top: calc(100% - 2px); opacity: 0.2; }
+  50.1% { top: 0; opacity: 0; }
+  52% { opacity: 0.8; }
+  100% { top: calc(100% - 2px); opacity: 0.8; }
+}
+
+.scan-beam {
+  animation: scanBeam 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes cornerBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.corner-blink {
+  animation: cornerBlink 1.2s ease-in-out infinite;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.35s ease-out forwards;
+}
+
+/* Custom range input */
+input[type="range"] {
+  -webkit-appearance: none;
+  background: transparent;
+}
+input[type="range"]::-webkit-slider-track {
+  @apply bg-industrial-600;
+  height: 4px;
+  border-radius: 2px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  @apply bg-brass-500;
+  margin-top: -6px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  @apply shadow-focus-ring;
+}

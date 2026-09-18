@@ -1,0 +1,44 @@
+# Environment & Secrets (NEVER COMMIT)
+.env
+.env.*
+!.env.example
+*.env
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Python & Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Node.js & Frontend Builds
+node_modules/
+dist/
+dev-dist/
+*.local
+
+# OCR Models & Uploads
+backend/uploads/
+uploads/
+paddle_models/
+ocr_models/
+.paddleocr/
+easyocr/
+temp/
+tmp/
+
+# Logs & Operating System
+*.log
+logs/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
