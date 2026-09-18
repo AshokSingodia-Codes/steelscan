@@ -10,6 +10,13 @@
 
 ---
 
+## 🌍 Live Deployment
+
+- **Frontend (Vercel):** [https://steelscan.vercel.app](https://steelscan.vercel.app)
+- **Backend API (Render):** [https://steelscan-backend-e2ub.onrender.com](https://steelscan-backend-e2ub.onrender.com)
+
+---
+
 ## 🛠️ Architecture Overview
 
 STEELSCAN follows a decoupled client-server architecture with stateful JWT authentication, real-time metrics, and lightweight embedded data persistence.
