@@ -35,8 +35,8 @@ export default function ChangePasswordPage() {
       return
     }
 
-    if (newPassword.length < 6) {
-      setLocalError('New password must be at least 6 characters.')
+    if (newPassword.length < 10) {
+      setLocalError('New password must be at least 10 characters long.')
       return
     }
 
@@ -118,7 +118,7 @@ export default function ChangePasswordPage() {
             <div className="mb-5 rounded-lg border border-molten-amber/50 bg-molten-amber/10 px-4 py-3 font-mono text-xs text-molten-amber flex gap-2">
               <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
               <span>
-                Create a new password before accessing production modules.
+                Create a new password before accessing production modules (minimum 10 characters).
               </span>
             </div>
 
@@ -138,6 +138,7 @@ export default function ChangePasswordPage() {
                     type="password"
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
+                    autoComplete="current-password"
                     autoFocus
                     className="w-full bg-industrial-950/50 border border-industrial-700 rounded-lg px-10 py-3.5 text-industrial-100 font-mono text-sm outline-none focus:border-scan-cyan focus:ring-1 focus:ring-scan-cyan/40 transition-all focus:shadow-[0_0_10px_rgba(0,229,255,0.15)]"
                     placeholder="Enter temporary password"
@@ -160,8 +161,9 @@ export default function ChangePasswordPage() {
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
+                    autoComplete="new-password"
                     className="w-full bg-industrial-950/50 border border-industrial-700 rounded-lg px-10 py-3.5 text-industrial-100 font-mono text-sm outline-none focus:border-scan-cyan focus:ring-1 focus:ring-scan-cyan/40 transition-all focus:shadow-[0_0_10px_rgba(0,229,255,0.15)]"
-                    placeholder="Create new password"
+                    placeholder="Create new password (min 10 chars)"
                   />
                 </div>
               </div>
@@ -181,6 +183,7 @@ export default function ChangePasswordPage() {
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
+                    autoComplete="new-password"
                     className="w-full bg-industrial-950/50 border border-industrial-700 rounded-lg px-10 py-3.5 text-industrial-100 font-mono text-sm outline-none focus:border-scan-cyan focus:ring-1 focus:ring-scan-cyan/40 transition-all focus:shadow-[0_0_10px_rgba(0,229,255,0.15)]"
                     placeholder="Confirm new password"
                   />

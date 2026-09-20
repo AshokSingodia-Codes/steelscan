@@ -202,6 +202,9 @@ export default function AdminDashboardPage() {
 
   const [selectedMember, setSelectedMember] = useState(null)
   const [savingMember, setSavingMember] = useState(false)
+  const [addError, setAddError] = useState(null)
+  const [editError, setEditError] = useState(null)
+  const [resetError, setResetError] = useState(null)
 
   const [addForm, setAddForm] = useState({
     username: '',
@@ -309,7 +312,7 @@ export default function AdminDashboardPage() {
       setUsers(Array.isArray(data) ? data : [])
     } catch (err) {
       console.error(err)
-      toast.error(err.response?.data?.detail || 'Failed to load members')
+      toast.error(err.response?.data?.detail || err.friendlyMessage || 'Failed to load members')
     } finally {
       setLoadingUsers(false)
     }
@@ -331,30 +334,28 @@ export default function AdminDashboardPage() {
       email: '',
       role: 'employee',
     })
-
+    setAddError(null)
     setShowAddModal(true)
   }
 
   const openEditMember = (member) => {
     setSelectedMember(member)
-
     setEditForm({
       full_name: member.full_name || '',
       email: member.email || '',
       role: member.role || 'employee',
     })
-
+    setEditError(null)
     setShowEditModal(true)
   }
 
   const openResetPassword = (member) => {
     setSelectedMember(member)
-
     setResetForm({
       newPassword: '',
       confirmPassword: '',
     })
-
+    setResetError(null)
     setShowResetModal(true)
   }
 
@@ -365,16 +366,17 @@ export default function AdminDashboardPage() {
     const password = addForm.password.trim()
 
     if (!username || !password) {
-      toast.error('Username and temporary password are required')
+      setAddError('Username and temporary password are required.')
       return
     }
 
-    if (password.length < 6) {
-      toast.error('Temporary password must be at least 6 characters')
+    if (password.length < 10) {
+      setAddError('Temporary password must be at least 10 characters long.')
       return
     }
 
     setSavingMember(true)
+    setAddError(null)
 
     try {
       await scannerApi.createUser({
@@ -386,12 +388,13 @@ export default function AdminDashboardPage() {
       })
 
       toast.success('Member added successfully')
-
       setShowAddModal(false)
       await loadUsers()
     } catch (err) {
       console.error(err)
-      toast.error(err.response?.data?.detail || 'Failed to add member')
+      const detail = err.response?.data?.detail || err.friendlyMessage || 'Could not save. Please try again.'
+      setAddError(detail)
+      toast.error(detail)
     } finally {
       setSavingMember(false)
     }
@@ -403,6 +406,7 @@ export default function AdminDashboardPage() {
     if (!selectedMember) return
 
     setSavingMember(true)
+    setEditError(null)
 
     try {
       await scannerApi.updateUserDetails({
@@ -413,13 +417,14 @@ export default function AdminDashboardPage() {
       })
 
       toast.success('Member details updated')
-
       setShowEditModal(false)
       setSelectedMember(null)
       await loadUsers()
     } catch (err) {
       console.error(err)
-      toast.error(err.response?.data?.detail || 'Failed to update member')
+      const detail = err.response?.data?.detail || err.friendlyMessage || 'Could not save. Please try again.'
+      setEditError(detail)
+      toast.error(detail)
     } finally {
       setSavingMember(false)
     }
@@ -434,21 +439,22 @@ export default function AdminDashboardPage() {
     const confirmPassword = resetForm.confirmPassword.trim()
 
     if (!newPassword || !confirmPassword) {
-      toast.error('Temporary password and confirmation are required')
+      setResetError('Temporary password and confirmation are required.')
       return
     }
 
-    if (newPassword.length < 6) {
-      toast.error('Temporary password must be at least 6 characters')
+    if (newPassword.length < 10) {
+      setResetError('Temporary password must be at least 10 characters long.')
       return
     }
 
     if (newPassword !== confirmPassword) {
-      toast.error('Temporary password confirmation does not match')
+      setResetError('Temporary password confirmation does not match.')
       return
     }
 
     setSavingMember(true)
+    setResetError(null)
 
     try {
       await scannerApi.resetUserPassword({
@@ -458,13 +464,14 @@ export default function AdminDashboardPage() {
       })
 
       toast.success('Password reset. User must change password on next login.')
-
       setShowResetModal(false)
       setSelectedMember(null)
       await loadUsers()
     } catch (err) {
       console.error(err)
-      toast.error(err.response?.data?.detail || 'Password reset failed')
+      const detail = err.response?.data?.detail || err.friendlyMessage || 'Password reset failed.'
+      setResetError(detail)
+      toast.error(detail)
     } finally {
       setSavingMember(false)
     }
@@ -1072,44 +1079,81 @@ export default function AdminDashboardPage() {
           icon={UserPlus}
           onClose={() => setShowAddModal(false)}
         >
-          <form onSubmit={createMember} className="space-y-3">
-            <input
-              value={addForm.username}
-              onChange={(e) => setAddForm({ ...addForm, username: e.target.value })}
-              placeholder="Username"
-              className="w-full bg-industrial-900 border border-industrial-700 text-industrial-200 rounded px-3 py-3 font-mono text-sm outline-none focus:border-scan-cyan"
-            />
+          <form onSubmit={createMember} autoComplete="off" className="space-y-3">
+            {addError && (
+              <div className="rounded-lg border border-alert-red/60 bg-alert-red/10 px-4 py-3 font-mono text-xs text-alert-red flex items-start gap-2">
+                <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
+                <span>{addError}</span>
+              </div>
+            )}
 
-            <input
-              value={addForm.password}
-              onChange={(e) => setAddForm({ ...addForm, password: e.target.value })}
-              placeholder="Temporary password"
-              type="password"
-              className="w-full bg-industrial-900 border border-industrial-700 text-industrial-200 rounded px-3 py-3 font-mono text-sm outline-none focus:border-scan-cyan"
-            />
+            <div>
+              <label className="block font-mono text-[10px] text-industrial-400 uppercase tracking-wider mb-1">
+                Username
+              </label>
+              <input
+                value={addForm.username}
+                onChange={(e) => setAddForm({ ...addForm, username: e.target.value })}
+                placeholder="Username (e.g. jsmith)"
+                autoComplete="off"
+                spellCheck="false"
+                className="w-full bg-industrial-900 border border-industrial-700 text-industrial-200 rounded px-3 py-3 font-mono text-sm outline-none focus:border-scan-cyan"
+              />
+            </div>
 
-            <input
-              value={addForm.full_name}
-              onChange={(e) => setAddForm({ ...addForm, full_name: e.target.value })}
-              placeholder="Full name"
-              className="w-full bg-industrial-900 border border-industrial-700 text-industrial-200 rounded px-3 py-3 font-mono text-sm outline-none focus:border-scan-cyan"
-            />
+            <div>
+              <label className="block font-mono text-[10px] text-industrial-400 uppercase tracking-wider mb-1">
+                Temporary Password (Min 10 characters)
+              </label>
+              <input
+                value={addForm.password}
+                onChange={(e) => setAddForm({ ...addForm, password: e.target.value })}
+                placeholder="Temporary password"
+                type="password"
+                autoComplete="new-password"
+                className="w-full bg-industrial-900 border border-industrial-700 text-industrial-200 rounded px-3 py-3 font-mono text-sm outline-none focus:border-scan-cyan"
+              />
+            </div>
 
-            <input
-              value={addForm.email}
-              onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
-              placeholder="Email"
-              className="w-full bg-industrial-900 border border-industrial-700 text-industrial-200 rounded px-3 py-3 font-mono text-sm outline-none focus:border-scan-cyan"
-            />
+            <div>
+              <label className="block font-mono text-[10px] text-industrial-400 uppercase tracking-wider mb-1">
+                Full Name
+              </label>
+              <input
+                value={addForm.full_name}
+                onChange={(e) => setAddForm({ ...addForm, full_name: e.target.value })}
+                placeholder="Full name (optional)"
+                autoComplete="off"
+                className="w-full bg-industrial-900 border border-industrial-700 text-industrial-200 rounded px-3 py-3 font-mono text-sm outline-none focus:border-scan-cyan"
+              />
+            </div>
 
-            <select
-              value={addForm.role}
-              onChange={(e) => setAddForm({ ...addForm, role: e.target.value })}
-              className="w-full bg-industrial-900 border border-industrial-700 text-industrial-200 rounded px-3 py-3 font-mono text-sm outline-none focus:border-scan-cyan"
-            >
-              <option value="employee">User / Operator</option>
-              <option value="admin">Admin</option>
-            </select>
+            <div>
+              <label className="block font-mono text-[10px] text-industrial-400 uppercase tracking-wider mb-1">
+                Email
+              </label>
+              <input
+                value={addForm.email}
+                onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
+                placeholder="Email address (optional)"
+                autoComplete="off"
+                className="w-full bg-industrial-900 border border-industrial-700 text-industrial-200 rounded px-3 py-3 font-mono text-sm outline-none focus:border-scan-cyan"
+              />
+            </div>
+
+            <div>
+              <label className="block font-mono text-[10px] text-industrial-400 uppercase tracking-wider mb-1">
+                Role
+              </label>
+              <select
+                value={addForm.role}
+                onChange={(e) => setAddForm({ ...addForm, role: e.target.value })}
+                className="w-full bg-industrial-900 border border-industrial-700 text-industrial-200 rounded px-3 py-3 font-mono text-sm outline-none focus:border-scan-cyan"
+              >
+                <option value="employee">User / Operator</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
 
             <div className="rounded-lg border border-molten-amber/50 bg-molten-amber/10 px-4 py-3 font-mono text-xs text-molten-amber">
               New members will be required to change this temporary password after first login.
@@ -1120,7 +1164,7 @@ export default function AdminDashboardPage() {
               className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-40"
             >
               <Save size={14} />
-              {savingMember ? 'Saving...' : 'Create Member'}
+              {savingMember ? 'SAVING...' : 'Create Member'}
             </button>
           </form>
         </Modal>
@@ -1133,36 +1177,60 @@ export default function AdminDashboardPage() {
           icon={Edit3}
           onClose={() => setShowEditModal(false)}
         >
-          <form onSubmit={updateMember} className="space-y-3">
-            <input
-              value={editForm.full_name}
-              onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
-              placeholder="Full name"
-              className="w-full bg-industrial-900 border border-industrial-700 text-industrial-200 rounded px-3 py-3 font-mono text-sm outline-none focus:border-scan-cyan"
-            />
+          <form onSubmit={updateMember} autoComplete="off" className="space-y-3">
+            {editError && (
+              <div className="rounded-lg border border-alert-red/60 bg-alert-red/10 px-4 py-3 font-mono text-xs text-alert-red flex items-start gap-2">
+                <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
+                <span>{editError}</span>
+              </div>
+            )}
 
-            <input
-              value={editForm.email}
-              onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-              placeholder="Email"
-              className="w-full bg-industrial-900 border border-industrial-700 text-industrial-200 rounded px-3 py-3 font-mono text-sm outline-none focus:border-scan-cyan"
-            />
+            <div>
+              <label className="block font-mono text-[10px] text-industrial-400 uppercase tracking-wider mb-1">
+                Full Name
+              </label>
+              <input
+                value={editForm.full_name}
+                onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                placeholder="Full name"
+                autoComplete="off"
+                className="w-full bg-industrial-900 border border-industrial-700 text-industrial-200 rounded px-3 py-3 font-mono text-sm outline-none focus:border-scan-cyan"
+              />
+            </div>
 
-            <select
-              value={editForm.role}
-              onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
-              className="w-full bg-industrial-900 border border-industrial-700 text-industrial-200 rounded px-3 py-3 font-mono text-sm outline-none focus:border-scan-cyan"
-            >
-              <option value="employee">User / Operator</option>
-              <option value="admin">Admin</option>
-            </select>
+            <div>
+              <label className="block font-mono text-[10px] text-industrial-400 uppercase tracking-wider mb-1">
+                Email
+              </label>
+              <input
+                value={editForm.email}
+                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                placeholder="Email"
+                autoComplete="off"
+                className="w-full bg-industrial-900 border border-industrial-700 text-industrial-200 rounded px-3 py-3 font-mono text-sm outline-none focus:border-scan-cyan"
+              />
+            </div>
+
+            <div>
+              <label className="block font-mono text-[10px] text-industrial-400 uppercase tracking-wider mb-1">
+                Role
+              </label>
+              <select
+                value={editForm.role}
+                onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
+                className="w-full bg-industrial-900 border border-industrial-700 text-industrial-200 rounded px-3 py-3 font-mono text-sm outline-none focus:border-scan-cyan"
+              >
+                <option value="employee">User / Operator</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
 
             <button
               disabled={savingMember}
               className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-40"
             >
               <Save size={14} />
-              {savingMember ? 'Saving...' : 'Save Changes'}
+              {savingMember ? 'SAVING...' : 'Save Changes'}
             </button>
           </form>
         </Modal>
@@ -1176,22 +1244,41 @@ export default function AdminDashboardPage() {
           danger
           onClose={() => setShowResetModal(false)}
         >
-          <form onSubmit={resetPassword} className="space-y-3">
-            <input
-              value={resetForm.newPassword}
-              onChange={(e) => setResetForm({ ...resetForm, newPassword: e.target.value })}
-              placeholder="New temporary password"
-              type="password"
-              className="w-full bg-industrial-900 border border-industrial-700 text-industrial-200 rounded px-3 py-3 font-mono text-sm outline-none focus:border-alert-red"
-            />
+          <form onSubmit={resetPassword} autoComplete="off" className="space-y-3">
+            {resetError && (
+              <div className="rounded-lg border border-alert-red/60 bg-alert-red/10 px-4 py-3 font-mono text-xs text-alert-red flex items-start gap-2">
+                <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
+                <span>{resetError}</span>
+              </div>
+            )}
 
-            <input
-              value={resetForm.confirmPassword}
-              onChange={(e) => setResetForm({ ...resetForm, confirmPassword: e.target.value })}
-              placeholder="Confirm temporary password"
-              type="password"
-              className="w-full bg-industrial-900 border border-industrial-700 text-industrial-200 rounded px-3 py-3 font-mono text-sm outline-none focus:border-alert-red"
-            />
+            <div>
+              <label className="block font-mono text-[10px] text-industrial-400 uppercase tracking-wider mb-1">
+                New Temporary Password (Min 10 characters)
+              </label>
+              <input
+                value={resetForm.newPassword}
+                onChange={(e) => setResetForm({ ...resetForm, newPassword: e.target.value })}
+                placeholder="New temporary password"
+                type="password"
+                autoComplete="new-password"
+                className="w-full bg-industrial-900 border border-industrial-700 text-industrial-200 rounded px-3 py-3 font-mono text-sm outline-none focus:border-alert-red"
+              />
+            </div>
+
+            <div>
+              <label className="block font-mono text-[10px] text-industrial-400 uppercase tracking-wider mb-1">
+                Confirm Temporary Password
+              </label>
+              <input
+                value={resetForm.confirmPassword}
+                onChange={(e) => setResetForm({ ...resetForm, confirmPassword: e.target.value })}
+                placeholder="Confirm temporary password"
+                type="password"
+                autoComplete="new-password"
+                className="w-full bg-industrial-900 border border-industrial-700 text-industrial-200 rounded px-3 py-3 font-mono text-sm outline-none focus:border-alert-red"
+              />
+            </div>
 
             <div className="rounded-lg border border-alert-red/50 bg-alert-red/10 px-4 py-3 font-mono text-xs text-alert-red">
               The user will be forced to change this temporary password after login.
@@ -1203,7 +1290,7 @@ export default function AdminDashboardPage() {
               className="w-full py-3 rounded-lg bg-alert-red/20 border border-alert-red text-alert-red font-bold hover:bg-alert-red/40 flex items-center justify-center gap-2 font-mono text-xs uppercase tracking-wider disabled:opacity-40 transition-colors"
             >
               <KeyRound size={14} />
-              {savingMember ? 'Resetting...' : 'Reset Password'}
+              {savingMember ? 'SAVING...' : 'Reset Password'}
             </button>
           </form>
         </Modal>

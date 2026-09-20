@@ -2,7 +2,8 @@ import { create } from 'zustand'
 import { scannerApi } from '../api/scannerApi'
 import { useScannerStore } from './scannerStore'
 
-const TOKEN_KEY = 'steelscan_auth_token'
+const ACCESS_TOKEN_KEY = 'steelscan_auth_token'
+const REFRESH_TOKEN_KEY = 'steelscan_refresh_token'
 const USER_KEY = 'steelscan_auth_user'
 
 function loadUser() {
@@ -16,7 +17,7 @@ function loadUser() {
 
 function loadToken() {
   try {
-    return localStorage.getItem(TOKEN_KEY)
+    return localStorage.getItem(ACCESS_TOKEN_KEY)
   } catch {
     return null
   }
@@ -65,10 +66,12 @@ export const useAuthStore = create((set, get) => ({
 
       const user = normalizeUser(data)
 
-      // Important: clear old scanner UI before new user enters system.
       clearScannerForAccountSwitch()
 
-      localStorage.setItem(TOKEN_KEY, data.access_token)
+      localStorage.setItem(ACCESS_TOKEN_KEY, data.access_token)
+      if (data.refresh_token) {
+        localStorage.setItem(REFRESH_TOKEN_KEY, data.refresh_token)
+      }
       localStorage.setItem(USER_KEY, JSON.stringify(user))
 
       set({
@@ -163,10 +166,10 @@ export const useAuthStore = create((set, get) => ({
   },
 
   logout: () => {
-    // Important: clear scanner result before leaving account.
     clearScannerForAccountSwitch()
 
-    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(ACCESS_TOKEN_KEY)
+    localStorage.removeItem(REFRESH_TOKEN_KEY)
     localStorage.removeItem(USER_KEY)
 
     set({
