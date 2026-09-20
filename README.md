@@ -173,16 +173,21 @@ Frontend UI will be accessible at `http://localhost:3001`.
 
 ---
 
-## 🔑 Default Credentials
+## 🔑 Administrator Provisioning & Authentication
 
-The system initializes default accounts upon first boot:
+STEELSCAN initializes the system administrator on first startup strictly via environment variables:
 
-| Role | Username | Default Password | Permissions |
-|---|---|---|---|
-| **System Admin** | `admin` | `admin123` | Full Access: User Management, CSV Uploads, Bulk Delete, System Metrics |
-| **Shift Operator** | `employee` | `employee123` | Operational Access: OCR Scanning, Manual Overrides, History Search |
+1. Configure `ADMIN_USERNAME` and `ADMIN_PASSWORD` in your backend `.env` file (minimum 10 characters).
+2. When the backend boots, it creates the administrator account if one does not already exist.
+3. Upon first login, users must change their temporary password before accessing operational endpoints.
+4. Shift operators (`employee`) are created securely by administrators via the User Management panel.
 
-> ⚠️ **Security Note**: Change default passwords in production via the User Settings / Admin panel.
+### 🗄️ Database Setup & Migrations Notice
+- **PostgreSQL**: For persistent deployments on Render, supply `DATABASE_URL` (e.g. `postgresql://user:pass@host:5432/dbname`).
+- **Local SQLite Recreation**: Due to schema hardening (token rotation, daily vision quotas, and security flags), any existing local `steelscan.db` SQLite files must be deleted and recreated on startup.
+- **Alembic Migrations**: Formal database migration scripts with Alembic will be introduced in **Phase 4**.
+
+> 🔒 **Security Notice**: Never commit plaintext passwords or secrets to Git. Refer to [SECURITY.md](SECURITY.md) for deployment hardening guidelines.
 
 ---
 

@@ -15,6 +15,11 @@ ENV/
 .env.*
 !.env.example
 
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
 # Uploads / temporary OCR files
 uploads/
 temp/

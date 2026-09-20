@@ -36,10 +36,6 @@ echo  * Frontend UI:    http://localhost:3001
 echo  * Backend API:    http://localhost:8000
 echo  * API Swagger:    http://localhost:8000/docs
 echo.
-echo  Default Credentials:
-echo    - Admin:    admin / admin123
-echo    - Operator: employee / employee123
-echo.
 echo  To stop everything, run 'stop.bat' or close the terminal windows.
 echo =====================================================================
 echo.

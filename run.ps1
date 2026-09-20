@@ -24,6 +24,4 @@ Write-Host "`nSTEELSCAN is running!" -ForegroundColor Cyan
 Write-Host "Frontend:    http://localhost:3001" -ForegroundColor Gray
 Write-Host "Backend:     http://localhost:8000" -ForegroundColor Gray
 Write-Host "API Docs:    http://localhost:8000/docs" -ForegroundColor Gray
-Write-Host "`nCredentials:" -ForegroundColor Gray
-Write-Host "  Admin:     admin / admin123" -ForegroundColor Gray
-Write-Host "  Operator:  employee / employee123" -ForegroundColor Gray
+

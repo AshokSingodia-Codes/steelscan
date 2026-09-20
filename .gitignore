@@ -24,6 +24,8 @@ node_modules/
 dist/
 dev-dist/
 *.local
+*.timestamp-*.mjs
+*.mjs.map
 
 # OCR Models & Uploads
 backend/uploads/
