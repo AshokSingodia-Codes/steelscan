@@ -15,6 +15,7 @@ from typing import Optional, Tuple
 
 import cv2
 import requests
+from sqlalchemy.orm import Session
 from app.config import GEMINI_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY
 
 log = logging.getLogger("vision_ai")
@@ -320,13 +321,58 @@ def call_openrouter_vision(image_path: str) -> Optional[Tuple[str, float, str]]:
 # MAIN CASCADE: Groq -> Gemini -> OpenRouter
 # =====================================================================
 
-def run_vision_ai_ocr(image_path: str) -> Optional[Tuple[str, float, str]]:
+def _check_and_increment_daily_vision_call(db: Optional[Session] = None) -> bool:
+    """
+    Atomically tracks daily vision provider calls in the database to survive restarts and multi-workers.
+    Returns True if call is permitted under DAILY_VISION_CALL_CAP, False if cap exceeded or disabled.
+    """
+    from app.config import DAILY_VISION_CALL_CAP, VISION_AI_ENABLED
+    from app.database import VisionDailyUsage, india_now
+
+    if not VISION_AI_ENABLED:
+        log.info("Vision AI is disabled via VISION_AI_ENABLED config. Using local OCR pipeline.")
+        return False
+
+    if not db:
+        return True
+
+    today = india_now().date()
+    try:
+        usage = db.query(VisionDailyUsage).filter(VisionDailyUsage.usage_date == today).first()
+        if not usage:
+            usage = VisionDailyUsage(usage_date=today, call_count=1, updated_at=india_now())
+            db.add(usage)
+            db.commit()
+            return True
+
+        if usage.call_count >= DAILY_VISION_CALL_CAP:
+            log.warning(
+                f"Daily Vision AI call cap reached ({usage.call_count}/{DAILY_VISION_CALL_CAP}). "
+                "Bypassing cloud vision to conserve API quota and falling back directly to local OCR."
+            )
+            return False
+
+        usage.call_count += 1
+        usage.updated_at = india_now()
+        db.commit()
+        return True
+    except Exception as exc:
+        db.rollback()
+        log.warning(f"Error checking daily vision usage in database: {exc}")
+        return True
+
+
+def run_vision_ai_ocr(image_path: str, db: Optional[Session] = None) -> Optional[Tuple[str, float, str]]:
     """
     Execute multi-provider Vision AI:
     1. Google Gemini Flash (gemini-3.6-flash / 3.7-flash) [Active, 100% accurate]
     2. Groq Cloud Vision (llama-3.2-vision)
     3. OpenRouter Free Vision
+    Enforces configurable DAILY_VISION_CALL_CAP to protect against runaway quota burn.
     """
+    if not _check_and_increment_daily_vision_call(db):
+        return None
+
     # 1. Google Gemini Flash (Verified working with user's key)
     res = call_gemini_vision(image_path)
     if res:
@@ -346,3 +392,4 @@ def run_vision_ai_ocr(image_path: str) -> Optional[Tuple[str, float, str]]:
 
     log.warning("All Vision AI providers returned no valid coil code.")
     return None
+

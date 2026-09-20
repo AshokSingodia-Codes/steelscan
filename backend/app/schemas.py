@@ -1,7 +1,10 @@
-from datetime import datetime, date
-from typing import Optional
+"""
+schemas.py — Pydantic Request and Response Schemas
+"""
 
-from pydantic import BaseModel
+from datetime import datetime, date
+from typing import Optional, List
+from pydantic import BaseModel, Field
 
 
 class ScanResponse(BaseModel):
@@ -53,6 +56,7 @@ class RecordResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     uptime_s: float
+    database: Optional[str] = "connected"
 
 
 class MetricsResponse(BaseModel):
@@ -78,17 +82,28 @@ class DeleteDateResponse(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    username: str
-    password: str
+    username: str = Field(..., min_length=1, max_length=80)
+    password: str = Field(..., min_length=1)
 
 
 class LoginResponse(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
     username: str
     full_name: Optional[str] = None
     role: str
     must_change_password: bool = False
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str = Field(..., min_length=1)
+
+
+class RefreshTokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
 
 
 class UserResponse(BaseModel):
@@ -102,8 +117,8 @@ class UserResponse(BaseModel):
 
 
 class CreateUserRequest(BaseModel):
-    username: str
-    password: str
+    username: str = Field(..., min_length=3, max_length=80)
+    password: str = Field(..., min_length=8)
     full_name: Optional[str] = None
     email: Optional[str] = None
     role: str = "employee"
@@ -120,10 +135,10 @@ class UpdateUserRequest(BaseModel):
 
 
 class ResetUserPasswordRequest(BaseModel):
-    new_password: str
+    new_password: str = Field(..., min_length=8)
     force_change: bool = True
 
 
 class ChangePasswordRequest(BaseModel):
     current_password: str
-    new_password: str
+    new_password: str = Field(..., min_length=8)

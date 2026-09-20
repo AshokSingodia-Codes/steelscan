@@ -1,33 +1,29 @@
 """
-main.py — FastAPI application entry point
-
-Local run:
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-Render start command:
-uvicorn app.main:app --host 0.0.0.0 --port $PORT
+main.py — FastAPI application entry point, CORS configuration, and route registrations.
 """
+
+from __future__ import annotations
 
 import logging
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from sqlalchemy import text
 
+from app.config import ALLOWED_ORIGINS
 from app.database import create_tables, get_db
 from app.dependencies import create_default_users
-from app.config import ALLOWED_ORIGINS
+from app.routes.auth import limiter, router as auth_router
+from app.routes.records import router as records_router
+from app.routes.scan import router as scan_router
+from app.routes.upload import router as upload_router
+from app.routes.users import router as users_router
 from app.schemas import HealthResponse, MetricsResponse
 from app.state import _start_time, _stats
-
-# Import routers
-from app.routes.auth import router as auth_router
-from app.routes.users import router as users_router
-from app.routes.scan import router as scan_router
-from app.routes.records import router as records_router
-from app.routes.upload import router as upload_router
-
 
 # =====================================================
 # LOGGING
@@ -59,57 +55,72 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Industrial Coil OCR API",
-    version="5.0.0",
-    description="Factory-grade OCR for steel coil identification codes",
+    title="STEELSCAN — Industrial Coil OCR API",
+    version="5.1.0",
+    description="Factory-grade OCR API for steel coil identification codes",
     lifespan=lifespan,
 )
 
-cors_kwargs = {
-    "allow_methods": ["*"],
-    "allow_headers": ["*"],
-}
+# Custom Rate Limiter Exception Handler
+def custom_rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=429,
+        content={"detail": f"Rate limit exceeded: {exc.detail}"},
+    )
 
-if ALLOWED_ORIGINS == ["*"]:
-    cors_kwargs["allow_origins"] = ["*"]
-    cors_kwargs["allow_credentials"] = False
-else:
-    cors_kwargs["allow_origins"] = ALLOWED_ORIGINS
-    cors_kwargs["allow_credentials"] = True
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, custom_rate_limit_exceeded_handler)
 
+# CORS Middleware configuration
 app.add_middleware(
     CORSMiddleware,
-    **cors_kwargs,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
 )
 
-# Include routers
+# Include API Routers
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(scan_router)
 app.include_router(records_router)
 app.include_router(upload_router)
 
+
 # =====================================================
-# BASIC ROUTES — PUBLIC
+# BASIC PUBLIC ROUTES
 # =====================================================
 
 @app.get("/")
 def root():
     return {
         "status": "running",
-        "version": "5.0.0",
+        "system": "STEELSCAN",
+        "version": "5.1.0",
         "auth": "enabled",
         "roles": ["admin", "employee"],
-        "record_traceability": "created_by_username + source_type enabled",
-        "cors": ALLOWED_ORIGINS,
+        "cors_origins": ALLOWED_ORIGINS,
     }
+
 
 @app.get("/health", response_model=HealthResponse)
 def health():
+    db_status = "connected"
+    try:
+        db = next(get_db())
+        db.execute(text("SELECT 1"))
+        db.close()
+    except Exception as exc:
+        db_status = f"error: {str(exc)}"
+
     return HealthResponse(
-        status="ok",
+        status="ok" if db_status == "connected" else "degraded",
         uptime_s=round(time.time() - _start_time, 1),
+        database=db_status,
     )
+
 
 @app.get("/metrics", response_model=MetricsResponse)
 def metrics():
