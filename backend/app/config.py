@@ -150,10 +150,15 @@ def _clean_env_value(val: str | None) -> str:
 
 RAW_DATABASE_URL: str = (
     _clean_env_value(os.getenv("DATABASE_URL"))
+    or _clean_env_value(os.getenv("DATABASE_URL_POOLED"))
+    or _clean_env_value(os.getenv("DATABASE_URL_UNPOOLED"))
     or _clean_env_value(os.getenv("DATABASE_URI"))
     or _clean_env_value(os.getenv("POSTGRES_URL"))
+    or _clean_env_value(os.getenv("POSTGRES_URL_NON_POOLING"))
+    or _clean_env_value(os.getenv("POSTGRES_PRISMA_URL"))
     or _clean_env_value(os.getenv("POSTGRESQL_URL"))
     or _clean_env_value(os.getenv("NEON_DATABASE_URL"))
+    or _clean_env_value(os.getenv("NEON_DATABASE_URL_POOLED"))
     or "sqlite:///./steelscan.db"
 )
 
