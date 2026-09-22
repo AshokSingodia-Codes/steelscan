@@ -42,37 +42,56 @@ function Record-Check {
     })
 }
 
-function Invoke-ApiRequest {
+function Send-TestRequest {
     param(
         [string]$Method,
         [string]$Path,
-        [hashtable]$Headers = @{},
-        [object]$Body = $null,
+        [string]$Body = $null,
+        [string]$ContentType = "application/json",
         [int]$TimeoutSec = 15
     )
     $uri = "$BaseUrl$Path"
-    $params = @{
-        Uri = $uri
-        Method = $Method
-        TimeoutSec = $TimeoutSec
-        SkipHttpErrorCheck = $true
-    }
-    if ($Headers.Count -gt 0) {
-        $params.Headers = $Headers
-    }
-    if ($null -ne $Body) {
-        $params.ContentType = "application/json"
-        $params.Body = ($Body | ConvertTo-Json -Compress)
-    }
     try {
-        return Invoke-RestMethod @params -ResponseHeadersVariable respHeaders -StatusCodeVariable statusCode
-    } catch {
-        # Fallback for older PowerShell versions
+        $params = @{
+            Uri = $uri
+            Method = $Method
+            TimeoutSec = $TimeoutSec
+            UseBasicParsing = $true
+            ErrorAction = "Stop"
+        }
+        if ($Body) {
+            $params.Body = $Body
+            $params.ContentType = $ContentType
+        }
+        $resp = Invoke-WebRequest @params
+        return [PSCustomObject]@{
+            StatusCode = [int]$resp.StatusCode
+            Content = $resp.Content
+            Success = $true
+        }
+    } catch [System.Net.WebException] {
         if ($_.Exception.Response) {
             $code = [int]$_.Exception.Response.StatusCode
-            return @{ _StatusCode = $code; _Error = $_.Exception.Message }
+            $stream = $_.Exception.Response.GetResponseStream()
+            $reader = New-Object System.IO.StreamReader($stream)
+            $content = $reader.ReadToEnd()
+            return [PSCustomObject]@{
+                StatusCode = $code
+                Content = $content
+                Success = $false
+            }
         }
-        return @{ _StatusCode = 0; _Error = $_.Exception.Message }
+        return [PSCustomObject]@{
+            StatusCode = 0
+            Content = $_.Exception.Message
+            Success = $false
+        }
+    } catch {
+        return [PSCustomObject]@{
+            StatusCode = 0
+            Content = $_.Exception.Message
+            Success = $false
+        }
     }
 }
 
@@ -85,14 +104,10 @@ $maxAttempts = 18
 $attempt = 1
 
 while ($attempt -le $maxAttempts) {
-    try {
-        $resp = Invoke-WebRequest -Uri "$BaseUrl/health" -Method Get -TimeoutSec 10 -SkipHttpErrorCheck -ErrorAction SilentlyContinue
-        if ($resp.StatusCode -eq 200) {
-            $healthOk = $true
-            break
-        }
-    } catch {
-        # Backend still spinning up
+    $resp = Send-TestRequest -Method "Get" -Path "/health" -TimeoutSec 10
+    if ($resp.StatusCode -eq 200) {
+        $healthOk = $true
+        break
     }
     Write-Host "  ... waiting for server to wake up (attempt $attempt/$maxAttempts)..." -ForegroundColor Gray
     Start-Sleep -Seconds 5
@@ -108,7 +123,7 @@ if ($healthOk) {
 # -------------------------------------------------------------
 # 2. Unauthenticated POST /scan rejection
 # -------------------------------------------------------------
-$resScan = Invoke-WebRequest -Uri "$BaseUrl/scan" -Method Post -TimeoutSec 10 -SkipHttpErrorCheck -ErrorAction SilentlyContinue
+$resScan = Send-TestRequest -Method "Post" -Path "/scan"
 $scanStatus = $resScan.StatusCode
 if ($scanStatus -in 401, 403) {
     Record-Check "2. POST /scan (No Auth)" $true "Rejected ($scanStatus Forbidden/Unauthorized)"
@@ -119,7 +134,7 @@ if ($scanStatus -in 401, 403) {
 # -------------------------------------------------------------
 # 3. Unauthenticated POST /upload rejection
 # -------------------------------------------------------------
-$resUpload = Invoke-WebRequest -Uri "$BaseUrl/upload" -Method Post -TimeoutSec 10 -SkipHttpErrorCheck -ErrorAction SilentlyContinue
+$resUpload = Send-TestRequest -Method "Post" -Path "/upload"
 $uploadStatus = $resUpload.StatusCode
 if ($uploadStatus -in 401, 403) {
     Record-Check "3. POST /upload (No Auth)" $true "Rejected ($uploadStatus Forbidden/Unauthorized)"
@@ -130,7 +145,7 @@ if ($uploadStatus -in 401, 403) {
 # -------------------------------------------------------------
 # 4. Unauthenticated GET /records rejection
 # -------------------------------------------------------------
-$resRecords = Invoke-WebRequest -Uri "$BaseUrl/records" -Method Get -TimeoutSec 10 -SkipHttpErrorCheck -ErrorAction SilentlyContinue
+$resRecords = Send-TestRequest -Method "Get" -Path "/records"
 $recordsStatus = $resRecords.StatusCode
 if ($recordsStatus -in 401, 403) {
     Record-Check "4. GET /records (No Auth)" $true "Rejected ($recordsStatus Forbidden/Unauthorized)"
@@ -141,7 +156,7 @@ if ($recordsStatus -in 401, 403) {
 # -------------------------------------------------------------
 # 5. Unauthenticated GET /auth/users rejection
 # -------------------------------------------------------------
-$resUsers = Invoke-WebRequest -Uri "$BaseUrl/auth/users" -Method Get -TimeoutSec 10 -SkipHttpErrorCheck -ErrorAction SilentlyContinue
+$resUsers = Send-TestRequest -Method "Get" -Path "/auth/users"
 $usersStatus = $resUsers.StatusCode
 if ($usersStatus -in 401, 403) {
     Record-Check "5. GET /auth/users (No Auth)" $true "Rejected ($usersStatus Forbidden/Unauthorized)"
@@ -153,7 +168,7 @@ if ($usersStatus -in 401, 403) {
 # 6. Refuse Default Admin Password (admin / admin123)
 # -------------------------------------------------------------
 $bodyAdmin = @{ username = "admin"; password = "admin123" } | ConvertTo-Json -Compress
-$resDefaultAdmin = Invoke-WebRequest -Uri "$BaseUrl/auth/login" -Method Post -Body $bodyAdmin -ContentType "application/json" -TimeoutSec 10 -SkipHttpErrorCheck -ErrorAction SilentlyContinue
+$resDefaultAdmin = Send-TestRequest -Method "Post" -Path "/auth/login" -Body $bodyAdmin
 if ($resDefaultAdmin.StatusCode -eq 401) {
     Record-Check "6. Default Admin Rejection" $true "401 Unauthorized (Hardcoded 'admin123' refused)"
 } else {
@@ -164,7 +179,7 @@ if ($resDefaultAdmin.StatusCode -eq 401) {
 # 7. Refuse Default Employee Password (employee / employee123)
 # -------------------------------------------------------------
 $bodyEmp = @{ username = "employee"; password = "employee123" } | ConvertTo-Json -Compress
-$resDefaultEmp = Invoke-WebRequest -Uri "$BaseUrl/auth/login" -Method Post -Body $bodyEmp -ContentType "application/json" -TimeoutSec 10 -SkipHttpErrorCheck -ErrorAction SilentlyContinue
+$resDefaultEmp = Send-TestRequest -Method "Post" -Path "/auth/login" -Body $bodyEmp
 if ($resDefaultEmp.StatusCode -eq 401) {
     Record-Check "7. Default Employee Rejection" $true "401 Unauthorized (Hardcoded 'employee123' refused)"
 } else {
@@ -186,17 +201,13 @@ if ($testLogin -eq 'y' -or $testLogin -eq 'Y') {
     $loginPayload = @{ username = $adminUser; password = $plainPass } | ConvertTo-Json -Compress
     $plainPass = $null # Clear plaintext immediately
 
-    try {
-        $loginRes = Invoke-WebRequest -Uri "$BaseUrl/auth/login" -Method Post -Body $loginPayload -ContentType "application/json" -TimeoutSec 10 -SkipHttpErrorCheck
-        if ($loginRes.StatusCode -eq 200) {
-            $parsed = $loginRes.Content | ConvertFrom-Json
-            $mustChange = [bool]$parsed.must_change_password
-            Record-Check "8. Configured Admin Login" $true "200 OK (must_change_password: $mustChange, role: $($parsed.role))"
-        } else {
-            Record-Check "8. Configured Admin Login" $false "Received status $($loginRes.StatusCode)"
-        }
-    } catch {
-        Record-Check "8. Configured Admin Login" $false "Request error: $_"
+    $loginRes = Send-TestRequest -Method "Post" -Path "/auth/login" -Body $loginPayload
+    if ($loginRes.StatusCode -eq 200) {
+        $parsed = $loginRes.Content | ConvertFrom-Json
+        $mustChange = [bool]$parsed.must_change_password
+        Record-Check "8. Configured Admin Login" $true "200 OK (must_change_password: $mustChange, role: $($parsed.role))"
+    } else {
+        Record-Check "8. Configured Admin Login" $false "Received status $($loginRes.StatusCode)"
     }
 }
 
@@ -212,7 +223,7 @@ $passedCount = ($results | Where-Object { $_.Status -eq "PASS" }).Count
 $results | Format-Table -AutoSize
 
 if ($failedCount -eq 0) {
-    Write-Host "`n✓ ALL CHECKS PASSED ($passedCount/$passedCount). Deployment is secure and active!" -ForegroundColor Green
+    Write-Host "`n[PASS] ALL CHECKS PASSED ($passedCount/$passedCount). Deployment is secure and active!" -ForegroundColor Green
 } else {
-    Write-Host "`n✗ $failedCount CHECK(S) FAILED. Please review the table above." -ForegroundColor Red
+    Write-Host "`n[FAIL] $failedCount CHECK(S) FAILED. Please review the table above." -ForegroundColor Red
 }
