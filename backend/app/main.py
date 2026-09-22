@@ -43,7 +43,9 @@ log = logging.getLogger("coil_api")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    log.info("Coil OCR service starting up")
+    from app.config import DATABASE_URL
+    target = DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else "local sqlite"
+    log.info("Coil OCR service starting up (Database target: %s)", target)
     create_tables()
     db = next(get_db())
     try:

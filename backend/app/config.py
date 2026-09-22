@@ -138,15 +138,39 @@ PASSWORD_BLACKLIST: Set[str] = {
 # DATABASE CONFIGURATION & URL NORMALIZATION
 # =====================================================
 
-RAW_DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./steelscan.db").strip()
+def _clean_env_value(val: str | None) -> str:
+    """Trim whitespace and strip accidental surrounding quotes."""
+    if not val:
+        return ""
+    cleaned = val.strip()
+    if (cleaned.startswith('"') and cleaned.endswith('"')) or (cleaned.startswith("'") and cleaned.endswith("'")):
+        cleaned = cleaned[1:-1].strip()
+    return cleaned
+
+
+RAW_DATABASE_URL: str = (
+    _clean_env_value(os.getenv("DATABASE_URL"))
+    or _clean_env_value(os.getenv("DATABASE_URI"))
+    or _clean_env_value(os.getenv("POSTGRES_URL"))
+    or _clean_env_value(os.getenv("POSTGRESQL_URL"))
+    or _clean_env_value(os.getenv("NEON_DATABASE_URL"))
+    or "sqlite:///./steelscan.db"
+)
+
 
 def normalize_database_url(url: str) -> str:
     """Normalize provider URLs for SQLAlchemy + psycopg2 compatibility."""
-    if url.startswith("postgres://"):
-        return url.replace("postgres://", "postgresql+psycopg2://", 1)
-    if url.startswith("postgresql://") and not url.startswith("postgresql+"):
-        return url.replace("postgresql://", "postgresql+psycopg2://", 1)
-    return url
+    cleaned = _clean_env_value(url)
+    if cleaned.startswith("postgres://"):
+        cleaned = cleaned.replace("postgres://", "postgresql+psycopg2://", 1)
+    elif cleaned.startswith("postgresql://") and not cleaned.startswith("postgresql+"):
+        cleaned = cleaned.replace("postgresql://", "postgresql+psycopg2://", 1)
+    
+    # If channel_binding is present in query string, ensure it doesn't break older libpq
+    if "channel_binding=" in cleaned and "sslmode=" not in cleaned:
+        cleaned = cleaned.replace("channel_binding=require", "sslmode=require")
+    return cleaned
+
 
 DATABASE_URL: str = normalize_database_url(RAW_DATABASE_URL)
 
