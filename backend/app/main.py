@@ -5,6 +5,7 @@ main.py — FastAPI application entry point, CORS configuration, and route regis
 from __future__ import annotations
 
 import logging
+import os
 import time
 from contextlib import asynccontextmanager
 
