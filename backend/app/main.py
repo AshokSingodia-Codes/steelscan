@@ -110,13 +110,15 @@ def health():
     db_status = "connected"
     try:
         db = next(get_db())
+        dialect = db.bind.dialect.name
         db.execute(text("SELECT 1"))
         db.close()
+        db_status = f"connected ({dialect})"
     except Exception as exc:
         db_status = f"error: {str(exc)}"
 
     return HealthResponse(
-        status="ok" if db_status == "connected" else "degraded",
+        status="ok" if db_status.startswith("connected") else "degraded",
         uptime_s=round(time.time() - _start_time, 1),
         database=db_status,
     )
