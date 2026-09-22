@@ -119,11 +119,12 @@ def health():
         
         # Check how DATABASE_URL was discovered
         env_raw = os.getenv("DATABASE_URL")
+        db_keys = [k for k in os.environ.keys() if any(term in k.upper() for term in ["DATA", "POSTGRES", "SQL", "DB", "NEON", "URL", "ENV"])]
         if env_raw:
             masked = env_raw.split("@")[-1] if "@" in env_raw else "set"
             db_status = f"connected ({dialect} -> {masked})"
         else:
-            db_status = f"connected ({dialect} - WARNING: DATABASE_URL env var not found in OS env)"
+            db_status = f"connected ({dialect} - WARNING: DATABASE_URL not found. Detected related keys: {db_keys})"
     except Exception as exc:
         db_status = f"error: {str(exc)}"
 
