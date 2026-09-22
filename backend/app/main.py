@@ -113,7 +113,14 @@ def health():
         dialect = db.bind.dialect.name
         db.execute(text("SELECT 1"))
         db.close()
-        db_status = f"connected ({dialect})"
+        
+        # Check how DATABASE_URL was discovered
+        env_raw = os.getenv("DATABASE_URL")
+        if env_raw:
+            masked = env_raw.split("@")[-1] if "@" in env_raw else "set"
+            db_status = f"connected ({dialect} -> {masked})"
+        else:
+            db_status = f"connected ({dialect} - WARNING: DATABASE_URL env var not found in OS env)"
     except Exception as exc:
         db_status = f"error: {str(exc)}"
 
